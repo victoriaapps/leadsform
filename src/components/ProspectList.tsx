@@ -57,13 +57,10 @@ export const ProspectList: React.FC<ProspectListProps> = ({ currentUser }) => {
         const { data, error } = await query;
         if (error) {
           console.warn('Aviso Supabase:', error.message);
-          setProspectos(getDemoProspectos(currentUser));
+          setErrorMsg('Error al consultar prospectos en Supabase: ' + error.message);
+          setProspectos([]);
         } else {
-          const demoData = getDemoProspectos(currentUser);
-          const combined = [...(data || []), ...demoData];
-          const uniqueMap = new Map();
-          combined.forEach(item => uniqueMap.set(item.id, item));
-          setProspectos(Array.from(uniqueMap.values()));
+          setProspectos(data || []);
         }
       } else {
         currentEmpresas = getDemoEmpresas();
@@ -82,9 +79,13 @@ export const ProspectList: React.FC<ProspectListProps> = ({ currentUser }) => {
       setPerfilesMap(perfMap);
 
     } catch (err: any) {
-      console.warn('Fallback a prospectos locales por aviso de Supabase:', err.message);
-      const demoData = getDemoProspectos(currentUser);
-      setProspectos(demoData);
+      console.warn('Error al obtener prospectos:', err.message);
+      if (!isSupabaseConfigured) {
+        setProspectos(getDemoProspectos(currentUser));
+      } else {
+        setErrorMsg('Error al conectar con Supabase: ' + err.message);
+        setProspectos([]);
+      }
     } finally {
       setLoading(false);
     }
