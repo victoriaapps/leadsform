@@ -40,13 +40,10 @@ export function App() {
     if (isSupabaseConfigured && supabase) {
       try {
         const { data: dbEmp } = await supabase.from('empresas').select('*');
-        if (dbEmp && dbEmp.length > 0) {
-          currentEmpresas = dbEmp;
-        } else {
-          currentEmpresas = getDemoEmpresas();
-        }
+        currentEmpresas = dbEmp || [];
       } catch (e) {
-        currentEmpresas = getDemoEmpresas();
+        console.error('Error cargando empresas desde Supabase:', e);
+        currentEmpresas = [];
       }
     } else {
       currentEmpresas = getDemoEmpresas();

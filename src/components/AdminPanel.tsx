@@ -134,10 +134,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (!empErr && dbEmp && dbEmp.length > 0) {
+        if (!empErr && dbEmp) {
           currentEmpresas = dbEmp;
         } else {
-          currentEmpresas = getDemoEmpresas();
+          currentEmpresas = [];
         }
 
         const { data: dbPerf, error: perfErr } = await supabase
@@ -145,14 +145,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (!perfErr && dbPerf && dbPerf.length > 0) {
+        if (!perfErr && dbPerf) {
           currentPerfiles = dbPerf;
         } else {
-          currentPerfiles = getDemoPerfiles();
+          currentPerfiles = [];
         }
       } catch (e) {
-        currentEmpresas = getDemoEmpresas();
-        currentPerfiles = getDemoPerfiles();
+        console.error('Error al cargar datos desde Supabase:', e);
+        currentEmpresas = [];
+        currentPerfiles = [];
       }
     } else {
       currentEmpresas = getDemoEmpresas();

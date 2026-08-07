@@ -40,10 +40,10 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
       if (isSupabaseConfigured && supabase) {
         try {
           const { data } = await supabase.from('empresas').select('*');
-          if (data && data.length > 0) currentEmpresas = data;
-          else currentEmpresas = getDemoEmpresas();
+          currentEmpresas = data || [];
         } catch (e) {
-          currentEmpresas = getDemoEmpresas();
+          console.error('Error al cargar empresas:', e);
+          currentEmpresas = [];
         }
       } else {
         currentEmpresas = getDemoEmpresas();

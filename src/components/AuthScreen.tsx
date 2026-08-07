@@ -41,6 +41,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
         if (dbError) {
           console.error('Error buscando perfil en Supabase:', dbError);
+          setErrorMsg('Error de conexión a Supabase: ' + dbError.message);
+          setLoading(false);
+          return;
         }
 
         if (perfilesData && perfilesData.length > 0) {
@@ -57,10 +60,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
             setLoading(false);
             return;
           }
+        } else {
+          setErrorMsg('Usuario no encontrado en la base de datos.');
+          setLoading(false);
+          return;
         }
       }
 
-      // 2. Fallback de verificación en almacenamiento de perfiles demo
+      // 2. Fallback de verificación en almacenamiento de perfiles demo solo cuando NO hay Supabase
       const perfiles = getDemoPerfiles();
       const matched = perfiles.find(
         (p) => p.email.toLowerCase() === cleanInput || p.email.toLowerCase().startsWith(cleanInput)
