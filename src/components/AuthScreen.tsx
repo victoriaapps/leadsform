@@ -1,5 +1,17 @@
 import React, { useState } from 'react';
-import { Shield, Lock, UserCheck, LogIn, AlertCircle } from 'lucide-react';
+import { 
+  Shield, 
+  Lock, 
+  UserCheck, 
+  LogIn, 
+  AlertCircle, 
+  Eye, 
+  EyeOff, 
+  Sparkles, 
+  ShieldCheck, 
+  Building2, 
+  User 
+} from 'lucide-react';
 import type { UsuarioPerfil } from '../types/prospecto';
 import { supabase, isSupabaseConfigured, getDemoPerfiles, setDemoCurrentUser } from '../lib/supabase';
 
@@ -10,6 +22,7 @@ interface AuthScreenProps {
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -42,14 +55,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
             setLoading(false);
             return;
           } else {
-            setErrorMsg('Contraseña incorrecta. Verifica la contraseña guardada en la base de datos.');
+            setErrorMsg('Contraseña incorrecta. Verifica las credenciales guardadas.');
             setLoading(false);
             return;
           }
         }
       }
 
-      // 2. Fallback de verificación en almacenamiento de perfiles
+      // 2. Fallback de verificación en almacenamiento de perfiles demo
       const perfiles = getDemoPerfiles();
       const matched = perfiles.find(
         (p) => p.email.toLowerCase() === cleanInput || p.email.toLowerCase().startsWith(cleanInput)
@@ -68,66 +81,142 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
+  const handleQuickFillDemo = (demoIdentifier: string, demoPass: string) => {
+    setIdentifier(demoIdentifier);
+    setPassword(demoPass);
+    setErrorMsg('');
+  };
+
   return (
-    <div className="auth-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '70vh' }}>
-      <div className="auth-card" style={{ width: '100%', maxWidth: '440px' }}>
-        <div className="form-header" style={{ textAlign: 'center', flexDirection: 'column', gap: '0.5rem' }}>
-          <div className="form-icon-circle" style={{ margin: '0 auto' }}>
-            <Shield size={26} className="icon-gradient" />
+    <div className="auth-fullscreen-container">
+      {/* Dynamic Ambient Background Glows */}
+      <div className="auth-ambient-glow glow-1"></div>
+      <div className="auth-ambient-glow glow-2"></div>
+      <div className="auth-bg-grid"></div>
+
+      <div className="auth-glass-card">
+        {/* Header Header & Branding */}
+        <div className="auth-card-header">
+          <div className="auth-brand-badge">
+            <Building2 size={26} className="auth-brand-icon" />
+            <Sparkles size={14} className="auth-sparkle-icon" />
           </div>
-          <h2 className="form-title" style={{ fontSize: '1.75rem' }}>Iniciar Sesión</h2>
-          <p className="form-subtitle">Autenticación dinámica con la base de datos de perfiles</p>
+          <h1 className="auth-title">Victoria Leads</h1>
+          <p className="auth-subtitle">Sistema Prospectador & CRM Multi-Empresa</p>
         </div>
 
-        <form onSubmit={handleLogin} className="prospect-form">
+        {/* Login Form */}
+        <form onSubmit={handleLogin} className="auth-form">
           {errorMsg && (
-            <div className="error-banner">
+            <div className="auth-error-banner">
               <AlertCircle size={18} />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          <div className="input-group">
-            <label className="input-label"><UserCheck size={16} /> USUARIO O CORREO</label>
-            <input
-              type="text"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="Ej. victoria.leads o correo@empresa.com"
-              className="input-field"
-              required
-            />
+          <div className="auth-input-group">
+            <label className="auth-input-label">
+              <UserCheck size={15} /> USUARIO O CORREO
+            </label>
+            <div className="auth-input-wrapper">
+              <input
+                type="text"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="Ej. victoria.leads o correo@empresa.com"
+                className="auth-input-field"
+                required
+                autoComplete="username"
+              />
+            </div>
           </div>
 
-          <div className="input-group">
-            <label className="input-label"><Lock size={16} /> CONTRASEÑA</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••••••"
-              className="input-field"
-              required
-            />
+          <div className="auth-input-group">
+            <label className="auth-input-label">
+              <Lock size={15} /> CONTRASEÑA
+            </label>
+            <div className="auth-input-wrapper">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••••••"
+                className="auth-input-field"
+                required
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="auth-password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                title={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="auth-session-badge">
+            <ShieldCheck size={15} />
+            <span>Sesión guardada de forma segura en este dispositivo</span>
           </div>
 
           <button
             type="submit"
-            className="btn-primary"
+            className="auth-submit-btn"
             disabled={loading}
-            style={{ width: '100%', marginTop: '1rem', padding: '0.9rem' }}
           >
             {loading ? (
               <>
-                <div className="spinner"></div> Verificando credenciales...
+                <div className="auth-spinner"></div>
+                <span>Verificando credenciales...</span>
               </>
             ) : (
               <>
-                <LogIn size={18} /> Iniciar Sesión
+                <span>Iniciar Sesión</span>
+                <LogIn size={18} />
               </>
             )}
           </button>
         </form>
+
+        {/* Accesos Rápidos Demo */}
+        <div className="auth-demo-section">
+          <div className="auth-demo-divider">
+            <span>ACCESOS RÁPIDOS DE PRUEBA</span>
+          </div>
+          <div className="auth-demo-pills">
+            <button
+              type="button"
+              className="auth-demo-pill superadmin"
+              onClick={() => handleQuickFillDemo('victoria.leads', 'Diego###888')}
+              title="Cargar credenciales de Superadmin"
+            >
+              <Shield size={13} /> Superadmin
+            </button>
+            <button
+              type="button"
+              className="auth-demo-pill admin"
+              onClick={() => handleQuickFillDemo('admin.motors@empresa.com', '123')}
+              title="Cargar credenciales de Admin Empresa"
+            >
+              <Building2 size={13} /> Admin RAFCAR
+            </button>
+            <button
+              type="button"
+              className="auth-demo-pill operador"
+              onClick={() => handleQuickFillDemo('op1', '123')}
+              title="Cargar credenciales de Operador"
+            >
+              <User size={13} /> Operador 1
+            </button>
+          </div>
+        </div>
+
+        {/* Card Footer */}
+        <div className="auth-card-footer">
+          <span>Victoria Leads &copy; 2026 • Plataforma de Prospectos</span>
+        </div>
       </div>
     </div>
   );

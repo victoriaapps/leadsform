@@ -99,13 +99,7 @@ export function App() {
   };
 
   if (!currentUser) {
-    return (
-      <div style={{ width: '100vw', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', padding: '1rem' }}>
-        <div style={{ maxWidth: '440px', width: '100%' }}>
-          <AuthScreen onLoginSuccess={(u) => setCurrentUser(u)} />
-        </div>
-      </div>
-    );
+    return <AuthScreen onLoginSuccess={(u) => setCurrentUser(u)} />;
   }
 
   const canViewAdminModules = currentUser.rol === 'admin' || currentUser.rol === 'superadmin';
