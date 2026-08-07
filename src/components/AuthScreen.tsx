@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  Shield, 
   Lock, 
   UserCheck, 
   LogIn, 
@@ -9,8 +8,7 @@ import {
   EyeOff, 
   Sparkles, 
   ShieldCheck, 
-  Building2, 
-  User 
+  Building2 
 } from 'lucide-react';
 import type { UsuarioPerfil } from '../types/prospecto';
 import { supabase, isSupabaseConfigured, getDemoPerfiles, setDemoCurrentUser } from '../lib/supabase';
@@ -81,12 +79,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleQuickFillDemo = (demoIdentifier: string, demoPass: string) => {
-    setIdentifier(demoIdentifier);
-    setPassword(demoPass);
-    setErrorMsg('');
-  };
-
   return (
     <div className="auth-fullscreen-container">
       {/* Dynamic Ambient Background Glows */}
@@ -95,14 +87,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
       <div className="auth-bg-grid"></div>
 
       <div className="auth-glass-card">
-        {/* Header Header & Branding */}
+        {/* Header & Branding */}
         <div className="auth-card-header">
           <div className="auth-brand-badge">
             <Building2 size={26} className="auth-brand-icon" />
             <Sparkles size={14} className="auth-sparkle-icon" />
           </div>
           <h1 className="auth-title">Victoria Leads</h1>
-          <p className="auth-subtitle">Sistema Prospectador & CRM Multi-Empresa</p>
+          <p className="auth-subtitle">Sistema prospectador externo</p>
         </div>
 
         {/* Login Form */}
@@ -123,7 +115,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="Ej. victoria.leads o correo@empresa.com"
+                placeholder="Usuario o correo"
                 className="auth-input-field"
                 required
                 autoComplete="username"
@@ -140,7 +132,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
+                placeholder="Contraseña"
                 className="auth-input-field"
                 required
                 autoComplete="current-password"
@@ -179,39 +171,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
             )}
           </button>
         </form>
-
-        {/* Accesos Rápidos Demo */}
-        <div className="auth-demo-section">
-          <div className="auth-demo-divider">
-            <span>ACCESOS RÁPIDOS DE PRUEBA</span>
-          </div>
-          <div className="auth-demo-pills">
-            <button
-              type="button"
-              className="auth-demo-pill superadmin"
-              onClick={() => handleQuickFillDemo('victoria.leads', 'Diego###888')}
-              title="Cargar credenciales de Superadmin"
-            >
-              <Shield size={13} /> Superadmin
-            </button>
-            <button
-              type="button"
-              className="auth-demo-pill admin"
-              onClick={() => handleQuickFillDemo('admin.motors@empresa.com', '123')}
-              title="Cargar credenciales de Admin Empresa"
-            >
-              <Building2 size={13} /> Admin RAFCAR
-            </button>
-            <button
-              type="button"
-              className="auth-demo-pill operador"
-              onClick={() => handleQuickFillDemo('op1', '123')}
-              title="Cargar credenciales de Operador"
-            >
-              <User size={13} /> Operador 1
-            </button>
-          </div>
-        </div>
 
         {/* Card Footer */}
         <div className="auth-card-footer">
