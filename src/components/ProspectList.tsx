@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, 
   RefreshCw, 
@@ -13,7 +13,7 @@ import {
   Building2,
   User,
   Shield,
-  Filter
+  RotateCcw
 } from 'lucide-react';
 import type { Prospecto, UsuarioPerfil, Empresa } from '../types/prospecto';
 import { supabase, isSupabaseConfigured, getDemoProspectos, deleteDemoProspecto, getDemoEmpresas, getDemoPerfiles } from '../lib/supabase';
@@ -25,11 +25,17 @@ interface ProspectListProps {
 export const ProspectList: React.FC<ProspectListProps> = ({ currentUser }) => {
   const [prospectos, setProspectos] = useState<Prospecto[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [perfiles, setPerfiles] = useState<UsuarioPerfil[]>([]);
   const [empresasMap, setEmpresasMap] = useState<Record<string, string>>({});
   const [perfilesMap, setPerfilesMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<boolean>(true);
+
+  // Estados de Filtro
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [empresaFilter, setEmpresaFilter] = useState<string>('all');
+  const [usuarioFilter, setUsuarioFilter] = useState<string>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fetchProspectos = async () => {
@@ -77,6 +83,7 @@ export const ProspectList: React.FC<ProspectListProps> = ({ currentUser }) => {
       const perfMap: Record<string, string> = {};
       currentPerfiles.forEach(p => { perfMap[p.id] = p.nombre; });
       setPerfilesMap(perfMap);
+      setPerfiles(currentPerfiles);
 
     } catch (err: any) {
       console.warn('Error al obtener prospectos:', err.message);
@@ -129,6 +136,70 @@ export const ProspectList: React.FC<ProspectListProps> = ({ currentUser }) => {
     return p.creado_por_nombre || 'Usuario';
   };
 
+  // Lista de usuarios/creadores disponibles según la empresa seleccionada o el rol
+  const availablePerfiles = useMemo(() => {
+    if (currentUser.rol === 'admin') {
+      return perfiles.filter(p => p.empresa_id === currentUser.empresa_id);
+    }
+    if (currentUser.rol === 'superadmin' && empresaFilter !== 'all') {
+      return perfiles.filter(p => p.empresa_id === empresaFilter);
+    }
+    return perfiles;
+  }, [currentUser, empresaFilter, perfiles]);
+
+  // Aplicar Filtros Dinámicos
+  const filtered = useMemo(() => {
+    return prospectos.filter((p) => {
+      // 1. Buscador texto
+      const term = searchTerm.toLowerCase().trim();
+      if (term) {
+        const matchesTerm = (
+          p.nombre.toLowerCase().includes(term) ||
+          (p.ciudad && p.ciudad.toLowerCase().includes(term)) ||
+          p.contacto.toLowerCase().includes(term) ||
+          p.marca.toLowerCase().includes(term) ||
+          p.modelo.toLowerCase().includes(term)
+        );
+        if (!matchesTerm) return false;
+      }
+
+      // 2. Filtro por Empresa (Superadmin)
+      if (currentUser.rol === 'superadmin' && empresaFilter !== 'all') {
+        if (p.empresa_id !== empresaFilter) return false;
+      }
+
+      // 3. Filtro por Usuario / Creador
+      if (usuarioFilter !== 'all') {
+        if (p.creado_por !== usuarioFilter) return false;
+      }
+
+      // 4. Filtro por Fechas (Desde / Hasta)
+      if (p.created_at) {
+        const leadDate = new Date(p.created_at).toISOString().slice(0, 10);
+        if (startDate && leadDate < startDate) return false;
+        if (endDate && leadDate > endDate) return false;
+      }
+
+      return true;
+    });
+  }, [prospectos, searchTerm, empresaFilter, usuarioFilter, startDate, endDate, currentUser]);
+
+  const hasActiveFilters = Boolean(
+    searchTerm.trim() || 
+    empresaFilter !== 'all' || 
+    usuarioFilter !== 'all' || 
+    startDate || 
+    endDate
+  );
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setEmpresaFilter('all');
+    setUsuarioFilter('all');
+    setStartDate('');
+    setEndDate('');
+  };
+
   const exportCSV = () => {
     if (filtered.length === 0) return;
     const headers = ['Nombre', 'Ciudad', 'Contacto', 'Marca', 'Modelo', 'Observacion', 'Empresa', 'Creado Por', 'Fecha'];
@@ -141,35 +212,19 @@ export const ProspectList: React.FC<ProspectListProps> = ({ currentUser }) => {
       `"${(p.observacion || '').replace(/"/g, '""')}"`,
       `"${getEmpresaNombre(p).replace(/"/g, '""')}"`,
       `"${getCreadorNombre(p).replace(/"/g, '""')}"`,
-      `"${p.created_at ? new Date(p.created_at).toLocaleString() : ''}"`
+      `"${p.created_at ? new Date(p.created_at).toLocaleString('es-ES') : ''}"`
     ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `prospectos_${currentUser.rol}_${new Date().toISOString().slice(0,10)}.csv`);
+    const filterSuffix = hasActiveFilters ? '_filtrado' : '_todos';
+    link.setAttribute('download', `prospectos_${currentUser.rol}${filterSuffix}_${new Date().toISOString().slice(0,10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
-
-  const filtered = prospectos.filter((p) => {
-    const term = searchTerm.toLowerCase();
-    const matchesTerm = (
-      p.nombre.toLowerCase().includes(term) ||
-      (p.ciudad && p.ciudad.toLowerCase().includes(term)) ||
-      p.contacto.toLowerCase().includes(term) ||
-      p.marca.toLowerCase().includes(term) ||
-      p.modelo.toLowerCase().includes(term)
-    );
-
-    if (currentUser.rol === 'superadmin' && empresaFilter !== 'all') {
-      return matchesTerm && p.empresa_id === empresaFilter;
-    }
-
-    return matchesTerm;
-  });
 
   const getVisibilityExplanation = () => {
     switch (currentUser.rol) {
@@ -217,49 +272,117 @@ export const ProspectList: React.FC<ProspectListProps> = ({ currentUser }) => {
               className="btn-secondary" 
               disabled={filtered.length === 0}
               style={{ fontSize: '0.85rem', padding: '0.45rem 0.85rem' }}
+              title={hasActiveFilters ? `Exportar ${filtered.length} prospectos filtrados a CSV` : `Exportar los ${prospectos.length} prospectos a CSV`}
             >
-              <Download size={15} /> Exportar CSV
+              <Download size={15} /> Exportar CSV {hasActiveFilters && `(${filtered.length})`}
             </button>
           </div>
         </div>
 
         {/* CONTROLES Y FILTROS */}
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
-            <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
-            <input
-              type="text"
-              placeholder="Buscar prospectos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-field"
-              style={{ paddingLeft: '2.75rem', paddingRight: '2.5rem' }}
-            />
-            {searchTerm && (
-              <button 
-                onClick={() => setSearchTerm('')} 
-                style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: '1.2rem', cursor: 'pointer' }}
-              >
-                ×
-              </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginBottom: '1.5rem' }}>
+          {/* FILA 1: BUSCADOR, EMPRESA Y USUARIO */}
+          <div style={{ display: 'flex', gap: '0.85rem', flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
+              <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
+              <input
+                type="text"
+                placeholder="Buscar prospectos por nombre, ciudad, marca..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="input-field"
+                style={{ paddingLeft: '2.75rem', paddingRight: '2.5rem' }}
+              />
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')} 
+                  style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: '1.2rem', cursor: 'pointer' }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            {currentUser.rol === 'superadmin' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1 1 200px' }}>
+                <Building2 size={16} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
+                <select
+                  value={empresaFilter}
+                  onChange={(e) => {
+                    setEmpresaFilter(e.target.value);
+                    setUsuarioFilter('all');
+                  }}
+                  className="input-field"
+                >
+                  <option value="all">Todas las Empresas</option>
+                  {empresas.map((e) => (
+                    <option key={e.id} value={e.id}>{e.nombre}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {currentUser.rol !== 'operador' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1 1 200px' }}>
+                <User size={16} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
+                <select
+                  value={usuarioFilter}
+                  onChange={(e) => setUsuarioFilter(e.target.value)}
+                  className="input-field"
+                >
+                  <option value="all">Todos los Usuarios</option>
+                  {availablePerfiles.map((u) => (
+                    <option key={u.id} value={u.id}>{u.nombre} ({u.rol})</option>
+                  ))}
+                </select>
+              </div>
             )}
           </div>
 
-          {currentUser.rol === 'superadmin' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', maxWidth: '280px' }}>
-              <Filter size={16} style={{ color: 'var(--text-dim)' }} />
-              <select
-                value={empresaFilter}
-                onChange={(e) => setEmpresaFilter(e.target.value)}
-                className="input-field"
-              >
-                <option value="all">Todas las Empresas</option>
-                {empresas.map((e) => (
-                  <option key={e.id} value={e.id}>{e.nombre}</option>
-                ))}
-              </select>
+          {/* FILA 2: FECHAS DESDE / HASTA Y REINICIO */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap', background: 'var(--bg-surface-hover)', padding: '0.65rem 0.95rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-dim)' }}>
+              <Calendar size={16} style={{ color: 'var(--primary-accent)' }} />
+              <span>Rango de Fechas:</span>
             </div>
-          )}
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}>
+                <span>Desde</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="input-field"
+                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.82rem', width: 'auto' }}
+                />
+              </div>
+
+              <span style={{ color: 'var(--text-dim)', fontWeight: 600 }}>—</span>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}>
+                <span>Hasta</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="input-field"
+                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.82rem', width: 'auto' }}
+                />
+              </div>
+            </div>
+
+            {hasActiveFilters && (
+              <button
+                onClick={clearAllFilters}
+                className="btn-secondary"
+                style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', marginLeft: 'auto' }}
+                title="Limpiar todos los filtros"
+              >
+                <RotateCcw size={14} /> Limpiar Filtros
+              </button>
+            )}
+          </div>
         </div>
 
         {/* CONTENIDO DE LEADS (TABLA EN DESKTOP / TARJETAS EN MÓVIL) */}

@@ -22,7 +22,8 @@ import {
   Save,
   Sliders,
   Shield,
-  Trash2
+  Trash2,
+  Hash
 } from 'lucide-react';
 import type { Empresa, UsuarioPerfil, UserRole } from '../types/prospecto';
 import { 
@@ -1268,6 +1269,46 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </button>
                     ))}
                   </div>
+
+                  {/* COLOR HEXADECIMAL PERSONALIZADO */}
+                  <div style={{ marginTop: '0.75rem', background: 'var(--bg-surface-hover)', padding: '0.75rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '0.5rem', display: 'block' }}>
+                      O ELIGE UN COLOR PERSONALIZADO (HEXADECIMAL)
+                    </label>
+
+                    <div className="hex-picker-container">
+                      <div className="hex-color-preview-wrapper">
+                        <input 
+                          type="color" 
+                          value={empresaColorPalette.startsWith('#') ? empresaColorPalette : '#6366f1'} 
+                          onChange={(e) => setEmpresaColorPalette(e.target.value)}
+                          className="hex-color-picker-input"
+                          title="Abre la paleta de colores interactiva"
+                        />
+                        <div 
+                          className="hex-color-preview-circle" 
+                          style={{ background: empresaColorPalette.startsWith('#') ? empresaColorPalette : 'var(--primary-accent)' }}
+                        >
+                          <Palette size={16} color="#ffffff" />
+                        </div>
+                      </div>
+
+                      <div className="hex-input-wrapper">
+                        <Hash size={16} className="hex-icon" />
+                        <input 
+                          type="text" 
+                          placeholder="1A3E60"
+                          value={empresaColorPalette.startsWith('#') ? empresaColorPalette.replace('#', '') : ''}
+                          onChange={(e) => {
+                            const val = e.target.value.trim();
+                            setEmpresaColorPalette(val ? `#${val}` : 'indigo');
+                          }}
+                          maxLength={6}
+                          className="hex-text-input"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
@@ -1396,6 +1437,54 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         {theme.name}
                       </button>
                     ))}
+                  </div>
+
+                  {/* COLOR HEXADECIMAL PERSONALIZADO */}
+                  <div style={{ marginTop: '0.75rem', background: 'var(--bg-surface-hover)', padding: '0.75rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '0.5rem', display: 'block' }}>
+                      O ELIGE UN COLOR PERSONALIZADO (HEXADECIMAL)
+                    </label>
+
+                    <div className="hex-picker-container">
+                      <div className="hex-color-preview-wrapper">
+                        <input 
+                          type="color" 
+                          value={editEmpresaPalette.startsWith('#') ? editEmpresaPalette : '#6366f1'} 
+                          onChange={(e) => {
+                            const hex = e.target.value;
+                            setEditEmpresaPalette(hex);
+                            applyCompanyTheme(hex);
+                          }}
+                          className="hex-color-picker-input"
+                          title="Abre la paleta de colores interactiva"
+                        />
+                        <div 
+                          className="hex-color-preview-circle" 
+                          style={{ background: editEmpresaPalette.startsWith('#') ? editEmpresaPalette : 'var(--primary-accent)' }}
+                        >
+                          <Palette size={16} color="#ffffff" />
+                        </div>
+                      </div>
+
+                      <div className="hex-input-wrapper">
+                        <Hash size={16} className="hex-icon" />
+                        <input 
+                          type="text" 
+                          placeholder="1A3E60"
+                          value={editEmpresaPalette.startsWith('#') ? editEmpresaPalette.replace('#', '') : ''}
+                          onChange={(e) => {
+                            const val = e.target.value.trim();
+                            const hex = val ? `#${val}` : 'indigo';
+                            setEditEmpresaPalette(hex);
+                            if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                              applyCompanyTheme(hex);
+                            }
+                          }}
+                          maxLength={6}
+                          className="hex-text-input"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
