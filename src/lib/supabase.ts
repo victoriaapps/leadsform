@@ -224,20 +224,21 @@ export function updateDemoPerfilPassword(id: string, newPassword: string): void 
 }
 
 // 3. USUARIO ACTUAL
-export function getDemoCurrentUser(): UsuarioPerfil {
+export function getDemoCurrentUser(): UsuarioPerfil | null {
   try {
     const data = localStorage.getItem(STORAGE_CURRENT_USER);
     if (data) return JSON.parse(data);
   } catch (e) {}
   
-  const perfiles = getDemoPerfiles();
-  const superadmin = perfiles.find(p => p.rol === 'superadmin') || perfiles[0];
-  setDemoCurrentUser(superadmin);
-  return superadmin;
+  return null;
 }
 
 export function setDemoCurrentUser(perfil: UsuarioPerfil): void {
   localStorage.setItem(STORAGE_CURRENT_USER, JSON.stringify(perfil));
+}
+
+export function clearDemoCurrentUser(): void {
+  localStorage.removeItem(STORAGE_CURRENT_USER);
 }
 
 // 4. PROSPECTOS DEMO
@@ -291,7 +292,7 @@ export function getDemoProspectos(currentUser: UsuarioPerfil): Prospecto[] {
   }
 }
 
-export function saveDemoProspecto(prospecto: Partial<Prospecto>, currentUser?: UsuarioPerfil): Prospecto {
+export function saveDemoProspecto(prospecto: Partial<Prospecto>, currentUser?: UsuarioPerfil | null): Prospecto {
   const user = currentUser || getDemoCurrentUser();
   const data = localStorage.getItem(STORAGE_PROSPECTOS);
   const all: Prospecto[] = data ? JSON.parse(data) : [];

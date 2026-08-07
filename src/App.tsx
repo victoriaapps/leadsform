@@ -12,7 +12,7 @@ import {
   Users
 } from 'lucide-react';
 import type { UsuarioPerfil, Empresa } from './types/prospecto';
-import { getDemoCurrentUser, getDemoEmpresas, isSupabaseConfigured, supabase } from './lib/supabase';
+import { getDemoCurrentUser, clearDemoCurrentUser, getDemoEmpresas, isSupabaseConfigured, supabase } from './lib/supabase';
 import { applyCompanyTheme, getThemeMode, setThemeMode } from './lib/themeEngine';
 import { ProspectForm } from './components/ProspectForm';
 import { ProspectList } from './components/ProspectList';
@@ -94,6 +94,7 @@ export function App() {
   };
 
   const handleLogout = () => {
+    clearDemoCurrentUser();
     setCurrentUser(null);
   };
 
