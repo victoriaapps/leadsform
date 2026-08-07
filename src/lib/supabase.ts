@@ -329,3 +329,16 @@ export function deleteDemoProspecto(id: string): void {
   const updated = all.filter((item) => item.id !== id);
   localStorage.setItem(STORAGE_PROSPECTOS, JSON.stringify(updated));
 }
+
+export function deleteDemoEmpresa(id: string): void {
+  const list = getDemoEmpresas();
+  const updated = list.filter((e) => e.id !== id);
+  localStorage.setItem(STORAGE_EMPRESAS, JSON.stringify(updated));
+}
+
+export function deleteDemoPerfil(id: string): void {
+  const list = getDemoPerfiles();
+  const updated = list.filter((p) => p.id !== id);
+  localStorage.setItem(STORAGE_PERFILES, JSON.stringify(updated));
+}
+

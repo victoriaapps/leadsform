@@ -21,16 +21,19 @@ import {
   Tag,
   Save,
   Sliders,
-  Shield
+  Shield,
+  Trash2
 } from 'lucide-react';
 import type { Empresa, UsuarioPerfil, UserRole } from '../types/prospecto';
 import { 
   getDemoEmpresas, 
   saveDemoEmpresa, 
   updateDemoEmpresa,
+  deleteDemoEmpresa,
   getDemoPerfiles, 
   saveDemoPerfil,
   updateDemoPerfil,
+  deleteDemoPerfil,
   updateDemoPerfilPassword,
   uploadCompanyLogoFile,
   supabase,
@@ -51,21 +54,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   currentUser, 
   onEmpresaUpdated,
   activeSubTab: externalSubTab,
-  onSubTabChange
+  onSubTabChange: _onSubTabChange
 }) => {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [perfiles, setPerfiles] = useState<UsuarioPerfil[]>([]);
-  const [internalSubTab, setInternalSubTab] = useState<'empresas' | 'catalogos' | 'usuarios'>('empresas');
-
-  const activeSubTab = externalSubTab || internalSubTab;
-
-  const setActiveSubTab = (tab: 'empresas' | 'catalogos' | 'usuarios') => {
-    if (onSubTabChange) {
-      onSubTabChange(tab);
-    } else {
-      setInternalSubTab(tab);
-    }
-  };
+  const activeSubTab = externalSubTab || 'empresas';
 
   // Empresa seleccionada para la gestión de catálogos
   const [selectedCatalogEmpresaId, setSelectedCatalogEmpresaId] = useState<string>(
@@ -605,6 +598,52 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  const handleDeleteEmpresa = async (emp: Empresa) => {
+    if (currentUser.rol !== 'superadmin') return;
+
+    const confirmed = window.confirm(
+      `¿Estás seguro de que deseas eliminar la empresa "${emp.nombre}"?\nEsta acción no se puede deshacer.`
+    );
+    if (!confirmed) return;
+
+    try {
+      if (isSupabaseConfigured && supabase) {
+        await supabase.from('empresas').delete().eq('id', emp.id);
+      }
+      deleteDemoEmpresa(emp.id);
+
+      await loadData();
+      if (onEmpresaUpdated) onEmpresaUpdated();
+    } catch (err: any) {
+      alert('Error al eliminar la empresa: ' + (err.message || err));
+    }
+  };
+
+  const handleDeleteUser = async (userToDelete: UsuarioPerfil) => {
+    if (currentUser.rol !== 'superadmin' && currentUser.rol !== 'admin') return;
+
+    if (userToDelete.id === currentUser.id) {
+      alert('No puedes eliminar tu propia cuenta de usuario en sesión activa.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `¿Estás seguro de que deseas eliminar al usuario "${userToDelete.nombre}" (${userToDelete.email})?\nEsta acción no se puede deshacer.`
+    );
+    if (!confirmed) return;
+
+    try {
+      if (isSupabaseConfigured && supabase) {
+        await supabase.from('perfiles').delete().eq('id', userToDelete.id);
+      }
+      deleteDemoPerfil(userToDelete.id);
+
+      await loadData();
+    } catch (err: any) {
+      alert('Error al eliminar el usuario: ' + (err.message || err));
+    }
+  };
+
   // Filtrado de empresas visibles (Superadmin ve todas, Admin ve solo su empresa)
   const visibleEmpresas = currentUser.rol === 'superadmin' 
     ? empresas 
@@ -623,38 +662,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       <div className="card-victoria">
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
           <div className="kpi-icon-badge purple">
-            <ShieldCheck size={24} />
+            {activeSubTab === 'empresas' && <Building2 size={24} />}
+            {activeSubTab === 'catalogos' && <Sliders size={24} />}
+            {activeSubTab === 'usuarios' && <Users size={24} />}
           </div>
           <div>
-            <h2 className="card-victoria-title" style={{ fontSize: '1.4rem' }}>Panel de Configuración Empresarial</h2>
+            <h2 className="card-victoria-title" style={{ fontSize: '1.35rem' }}>
+              {activeSubTab === 'empresas' && (currentUser.rol === 'superadmin' ? 'Empresas Registradas' : 'Mi Empresa')}
+              {activeSubTab === 'catalogos' && 'Catálogos y Desplegables'}
+              {activeSubTab === 'usuarios' && 'Usuarios y Roles'}
+            </h2>
             <p className="card-victoria-sub">
-              {currentUser.rol === 'superadmin' 
-                ? 'Administración Global de Empresas, Catálogos y Usuarios' 
-                : `Administración de Tu Empresa (${selectedCatalogEmpresaObj?.nombre || 'General'})`}
+              {activeSubTab === 'empresas' && 'Administración de la información y logotipos de empresa'}
+              {activeSubTab === 'catalogos' && 'Configuración de ciudades, marcas y modelos vehiculares'}
+              {activeSubTab === 'usuarios' && `Administración de cuentas de acceso (${visiblePerfiles.length} usuarios registrados)`}
             </p>
           </div>
-        </div>
-
-        {/* SUBNAVEGACIÓN RESPONSIVA */}
-        <div className="admin-subtabs-container">
-          <button
-            className={`subtab-btn ${activeSubTab === 'empresas' ? 'active' : ''}`}
-            onClick={() => setActiveSubTab('empresas')}
-          >
-            <Building2 size={16} /> Empresa
-          </button>
-          <button
-            className={`subtab-btn ${activeSubTab === 'catalogos' ? 'active' : ''}`}
-            onClick={() => setActiveSubTab('catalogos')}
-          >
-            <Sliders size={16} /> Catálogos
-          </button>
-          <button
-            className={`subtab-btn ${activeSubTab === 'usuarios' ? 'active' : ''}`}
-            onClick={() => setActiveSubTab('usuarios')}
-          >
-            <Users size={16} /> Usuarios ({visiblePerfiles.length})
-          </button>
         </div>
 
         {/* SECCIÓN 1: EMPRESAS */}
@@ -681,7 +704,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               {visibleEmpresas.map((emp) => {
                 const currentTheme = COLOR_THEMES.find(t => t.id === emp.color_palette) || COLOR_THEMES[0];
                 return (
-                  <div key={emp.id} className="record-item" style={{ justifyContent: 'space-between', padding: '1rem 1.25rem' }}>
+                  <div key={emp.id} className="record-item" style={{ justifyContent: 'space-between', padding: '1rem 1.25rem', marginBottom: '0.75rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                       {emp.logo_url ? (
                         <img
@@ -702,14 +725,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => openEditEmpresaModal(emp)}
-                      className="btn-secondary"
-                      style={{ padding: '0.45rem 0.95rem', fontSize: '0.85rem' }}
-                    >
-                      <Edit2 size={14} /> Editar Nombre & Logo
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => openEditEmpresaModal(emp)}
+                        className="btn-secondary"
+                        style={{ padding: '0.45rem 0.95rem', fontSize: '0.85rem' }}
+                      >
+                        <Edit2 size={14} /> Editar Nombre & Logo
+                      </button>
+
+                      {currentUser.rol === 'superadmin' && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEmpresa(emp)}
+                          className="btn-danger-sm"
+                          title="Eliminar Empresa"
+                        >
+                          <Trash2 size={14} /> Eliminar
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -1108,6 +1144,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         >
                           <Key size={14} />
                         </button>
+
+                        {/* BOTÓN ELIMINAR USUARIO (SUPERADMIN Y ADMIN) */}
+                        {!isCurrentLoggedUser && (currentUser.rol === 'superadmin' || currentUser.rol === 'admin') && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUser(p)}
+                            className="btn-danger-sm"
+                            title="Eliminar usuario"
+                          >
+                            <Trash2 size={14} /> Eliminar
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
