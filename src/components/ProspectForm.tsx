@@ -11,15 +11,25 @@ import {
   AlertCircle,
   Sparkles,
   Tag,
-  Building2
+  Building2,
+  Globe,
+  Code2,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import type { Prospecto, UsuarioPerfil, FormErrorState, Empresa } from '../types/prospecto';
 import { 
   saveDemoProspecto, 
   getDemoEmpresas, 
+  saveDemoWebhookLog,
   supabase, 
   isSupabaseConfigured
 } from '../lib/supabase';
+import { 
+  sendLeadToEndpoint, 
+  DEFAULT_ENDPOINT_BODY, 
+  type WebhookSendResult 
+} from '../lib/webhook';
 
 interface ProspectFormProps {
   currentUser: UsuarioPerfil;
@@ -87,6 +97,10 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
   const [isSuccess, setIsSuccess] = useState(false);
   const [lastSubmitted, setLastSubmitted] = useState<Prospecto | null>(null);
 
+  // Estado para el resultado del envío al Endpoint POST
+  const [endpointResult, setEndpointResult] = useState<WebhookSendResult | null>(null);
+  const [showPayloadDetails, setShowPayloadDetails] = useState(false);
+
   const finalCiudad = ciudadesList.length > 0 ? selectedCiudad : textCiudad;
   const finalMarca = marcasList.length > 0 ? selectedMarca : textMarca;
   
@@ -131,6 +145,7 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
 
     setIsSubmitting(true);
     setErrors({});
+    setEndpointResult(null);
 
     const targetEmpresaId = currentUser.rol === 'superadmin' ? selectedTargetEmpresaId : (currentUser.empresa_id || selectedTargetEmpresaId);
 
@@ -143,7 +158,11 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
       observacion: observacion.trim() || undefined,
       empresa_id: targetEmpresaId,
       creado_por: currentUser.id,
+      creado_por_nombre: currentUser.nombre,
+      creado_por_cod_usuario: currentUser.cod_usuario || null,
     };
+
+    let savedProspecto: Prospecto;
 
     try {
       if (isSupabaseConfigured && supabase) {
@@ -168,13 +187,73 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
         }
 
         if (data && data[0]) {
-          setLastSubmitted(data[0]);
+          savedProspecto = data[0];
         } else {
-          setLastSubmitted(saveDemoProspecto(newProspectoData, currentUser));
+          savedProspecto = saveDemoProspecto(newProspectoData, currentUser);
         }
       } else {
-        const demoItem = saveDemoProspecto(newProspectoData, currentUser);
-        setLastSubmitted(demoItem);
+        savedProspecto = saveDemoProspecto(newProspectoData, currentUser);
+      }
+
+      setLastSubmitted(savedProspecto);
+
+      // ENVÍO AL ENDPOINT POST EXTERNO SI ESTÁ CONFIGURADO
+      const targetEmpresaObj = empresas.find(emp => emp.id === targetEmpresaId) || currentEmpresa;
+      if (targetEmpresaObj && targetEmpresaObj.endpoint_enabled && targetEmpresaObj.endpoint_url?.trim()) {
+        try {
+          const res = await sendLeadToEndpoint(
+            targetEmpresaObj.endpoint_url,
+            targetEmpresaObj.endpoint_body_template || DEFAULT_ENDPOINT_BODY,
+            {
+              prospecto: savedProspecto,
+              currentUser,
+              empresa: targetEmpresaObj,
+            }
+          );
+          setEndpointResult(res);
+
+          const logPayload = {
+            empresa_id: targetEmpresaId,
+            prospecto_id: savedProspecto.id,
+            prospecto_nombre: savedProspecto.nombre,
+            prospecto_contacto: savedProspecto.contacto,
+            endpoint_url: targetEmpresaObj.endpoint_url,
+            success: res.success,
+            status_code: res.statusCode,
+            status_text: res.statusText,
+            compiled_body: res.compiledBody || '',
+            response_body: res.responseBody,
+            error: res.error,
+            created_at: res.timestamp || new Date().toISOString(),
+          };
+
+          if (isSupabaseConfigured && supabase) {
+            try {
+              await supabase.from('webhook_logs').insert([logPayload]);
+            } catch (logErr) {
+              console.warn('Fallback local para log de webhook');
+            }
+          }
+          saveDemoWebhookLog(logPayload);
+        } catch (webhookErr: any) {
+          console.error('Error al enviar lead al endpoint POST:', webhookErr);
+          const errRes = {
+            success: false,
+            error: webhookErr.message || 'Error inesperado al conectar con el endpoint.',
+          };
+          setEndpointResult(errRes);
+
+          saveDemoWebhookLog({
+            empresa_id: targetEmpresaId,
+            prospecto_id: savedProspecto.id,
+            prospecto_nombre: savedProspecto.nombre,
+            prospecto_contacto: savedProspecto.contacto,
+            endpoint_url: targetEmpresaObj.endpoint_url,
+            success: false,
+            error: errRes.error,
+            created_at: new Date().toISOString(),
+          });
+        }
       }
 
       setIsSuccess(true);
@@ -201,6 +280,8 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
     setErrors({});
     setIsSuccess(false);
     setLastSubmitted(null);
+    setEndpointResult(null);
+    setShowPayloadDetails(false);
   };
 
   if (isSuccess && lastSubmitted) {
@@ -231,7 +312,80 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            {/* ESTADO DE ENVÍO AL ENDPOINT POST EXTERNO */}
+            {endpointResult && (
+              <div style={{
+                marginTop: '1.25rem',
+                padding: '1rem 1.25rem',
+                borderRadius: '12px',
+                textAlign: 'left',
+                background: endpointResult.success ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
+                border: `1px solid ${endpointResult.success ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                  <span style={{
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                    color: endpointResult.success ? '#10b981' : '#f59e0b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}>
+                    <Globe size={17} /> 
+                    {endpointResult.success 
+                      ? `Enviado a Endpoint POST (HTTP ${endpointResult.statusCode || 200})` 
+                      : 'Notificación a Endpoint POST Fallida'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowPayloadDetails(!showPayloadDetails)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-dim)',
+                      cursor: 'pointer',
+                      fontSize: '0.8rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.2rem'
+                    }}
+                  >
+                    <Code2 size={14} /> Payload {showPayloadDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                </div>
+
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-main)', margin: 0 }}>
+                  {endpointResult.success
+                    ? 'El webhook ha procesado y recibido correctamente la información del lead.'
+                    : `El lead se guardó localmente, pero el servidor remoto retornó error: ${endpointResult.error || `HTTP ${endpointResult.statusCode} ${endpointResult.statusText}`}`}
+                </p>
+
+                {showPayloadDetails && endpointResult.compiledBody && (
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-dim)', marginBottom: '0.25rem' }}>
+                      Body JSON Enviado (Método POST):
+                    </div>
+                    <pre style={{
+                      background: 'var(--bg-surface-hover)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      fontSize: '0.78rem',
+                      fontFamily: 'monospace',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-all',
+                      color: 'var(--text-main)',
+                      border: '1px solid var(--border-color)',
+                      maxHeight: '180px',
+                      overflowY: 'auto'
+                    }}>
+                      {endpointResult.compiledBody}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1.5rem' }}>
               <button onClick={handleReset} className="btn-primary">
                 <Sparkles size={16} /> Registrar Otro Prospecto
               </button>

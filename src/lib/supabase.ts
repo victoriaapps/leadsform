@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Prospecto, Empresa, UsuarioPerfil } from '../types/prospecto';
+import type { Prospecto, Empresa, UsuarioPerfil, WebhookLogEntry } from '../types/prospecto';
 
 const DEFAULT_SUPABASE_URL = 'https://mqvluwuqirizkydkjvhm.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xdmx1d3VxaXJpemt5ZGtqdmhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5MjI0NTQsImV4cCI6MjEwMTQ5ODQ1NH0.QnxndUQh-8Ml0yMvlKzxr6YFlrfcguyqLRWcOLljEPU';
@@ -83,6 +83,7 @@ const STORAGE_EMPRESAS = 'prospectos_demo_empresas_v9';
 const STORAGE_PERFILES = 'prospectos_demo_perfiles_v9';
 const STORAGE_PROSPECTOS = 'prospectos_demo_prospectos_v9';
 const STORAGE_CURRENT_USER = 'prospectos_demo_current_user_v9';
+const STORAGE_WEBHOOK_LOGS = 'prospectos_demo_webhook_logs_v9';
 
 const UUID_EMP_1 = '11111111-1111-4111-a111-111111111111';
 const UUID_EMP_2 = '22222222-2222-4222-a222-222222222222';
@@ -105,6 +106,19 @@ export function getDemoEmpresas(): Empresa[] {
           ciudades: [],
           marcas: [],
           modelos_por_marca: {},
+          endpoint_url: '',
+          endpoint_enabled: false,
+          endpoint_body_template: `{
+  "ciudad": "{ciudad}",
+  "modelo": "{modelo}",
+  "nombre": "{nombre}",
+  "origen": "Expocruz",
+  "pagina": "Expocruz",
+  "campaign": "Expocruz",
+  "telefono": "{contacto}",
+  "codUsuario": "{codUsuario}",
+  "financiamiento": "{observacion}"
+}`,
           created_at: new Date().toISOString() 
         },
         { 
@@ -115,6 +129,19 @@ export function getDemoEmpresas(): Empresa[] {
           ciudades: [],
           marcas: [],
           modelos_por_marca: {},
+          endpoint_url: '',
+          endpoint_enabled: false,
+          endpoint_body_template: `{
+  "ciudad": "{ciudad}",
+  "modelo": "{modelo}",
+  "nombre": "{nombre}",
+  "origen": "Expocruz",
+  "pagina": "Expocruz",
+  "campaign": "Expocruz",
+  "telefono": "{contacto}",
+  "codUsuario": "{codUsuario}",
+  "financiamiento": "{observacion}"
+}`,
           created_at: new Date().toISOString() 
         },
       ];
@@ -134,7 +161,10 @@ export function saveDemoEmpresa(
   ciudades?: string[],
   marcas?: string[],
   modelos_por_marca?: Record<string, string[]>,
-  idFixed?: string
+  idFixed?: string,
+  endpoint_url?: string | null,
+  endpoint_enabled?: boolean,
+  endpoint_body_template?: string | null
 ): Empresa {
   const list = getDemoEmpresas();
   const newEmp: Empresa = {
@@ -145,6 +175,9 @@ export function saveDemoEmpresa(
     ciudades: ciudades || [],
     marcas: marcas || [],
     modelos_por_marca: modelos_por_marca || {},
+    endpoint_url: endpoint_url || null,
+    endpoint_enabled: endpoint_enabled ?? false,
+    endpoint_body_template: endpoint_body_template || null,
     created_at: new Date().toISOString()
   };
   const updated = [newEmp, ...list];
@@ -171,6 +204,7 @@ export function getDemoPerfiles(): UsuarioPerfil[] {
           nombre: 'Superadmin Victoria',
           rol: 'superadmin',
           empresa_id: null,
+          cod_usuario: 'SUPER-01',
           created_at: new Date().toISOString()
         },
         {
@@ -180,6 +214,7 @@ export function getDemoPerfiles(): UsuarioPerfil[] {
           nombre: 'admin rafcar',
           rol: 'admin',
           empresa_id: UUID_EMP_1,
+          cod_usuario: 'ADM-101',
           created_at: new Date().toISOString()
         },
         {
@@ -189,6 +224,7 @@ export function getDemoPerfiles(): UsuarioPerfil[] {
           nombre: 'perfil 1',
           rol: 'operador',
           empresa_id: UUID_EMP_1,
+          cod_usuario: 'OP-201',
           created_at: new Date().toISOString()
         },
         {
@@ -198,6 +234,7 @@ export function getDemoPerfiles(): UsuarioPerfil[] {
           nombre: 'perfil 2',
           rol: 'operador',
           empresa_id: UUID_EMP_1,
+          cod_usuario: 'OP-202',
           created_at: new Date().toISOString()
         }
       ];
@@ -349,5 +386,52 @@ export function deleteDemoPerfil(id: string): void {
   const list = getDemoPerfiles();
   const updated = list.filter((p) => p.id !== id);
   localStorage.setItem(STORAGE_PERFILES, JSON.stringify(updated));
+}
+
+// 5. REGISTROS / LOGS DE WEBHOOKS (HISTORIAL DE POSTS)
+export function getDemoWebhookLogs(empresaId?: string): WebhookLogEntry[] {
+  try {
+    const data = localStorage.getItem(STORAGE_WEBHOOK_LOGS);
+    const all: WebhookLogEntry[] = data ? JSON.parse(data) : [];
+    if (empresaId) {
+      return all.filter(l => l.empresa_id === empresaId);
+    }
+    return all;
+  } catch (e) {
+    return [];
+  }
+}
+
+export function saveDemoWebhookLog(logEntry: Partial<WebhookLogEntry>): WebhookLogEntry {
+  const logs = getDemoWebhookLogs();
+  const newLog: WebhookLogEntry = {
+    id: logEntry.id || generateUUID(),
+    empresa_id: logEntry.empresa_id || '',
+    prospecto_id: logEntry.prospecto_id,
+    prospecto_nombre: logEntry.prospecto_nombre || 'Desconocido',
+    prospecto_contacto: logEntry.prospecto_contacto || '',
+    endpoint_url: logEntry.endpoint_url || '',
+    success: logEntry.success ?? false,
+    status_code: logEntry.status_code,
+    status_text: logEntry.status_text,
+    compiled_body: logEntry.compiled_body || '{}',
+    response_body: logEntry.response_body,
+    error: logEntry.error,
+    created_at: logEntry.created_at || new Date().toISOString(),
+  };
+
+  const updated = [newLog, ...logs];
+  localStorage.setItem(STORAGE_WEBHOOK_LOGS, JSON.stringify(updated));
+  return newLog;
+}
+
+export function clearDemoWebhookLogs(empresaId?: string): void {
+  if (empresaId) {
+    const logs = getDemoWebhookLogs();
+    const updated = logs.filter(l => l.empresa_id !== empresaId);
+    localStorage.setItem(STORAGE_WEBHOOK_LOGS, JSON.stringify(updated));
+  } else {
+    localStorage.removeItem(STORAGE_WEBHOOK_LOGS);
+  }
 }
 

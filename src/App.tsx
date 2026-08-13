@@ -9,7 +9,8 @@ import {
   Settings, 
   Maximize2,
   Sliders,
-  Users
+  Users,
+  Globe
 } from 'lucide-react';
 import type { UsuarioPerfil, Empresa } from './types/prospecto';
 import { getDemoCurrentUser, clearDemoCurrentUser, getDemoEmpresas, isSupabaseConfigured, supabase } from './lib/supabase';
@@ -29,7 +30,7 @@ export function App() {
   }, []);
 
   const [currentUser, setCurrentUser] = useState<UsuarioPerfil | null>(getDemoCurrentUser());
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'form' | 'list' | 'catalogos' | 'usuarios' | 'admin'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'form' | 'list' | 'catalogos' | 'endpoint' | 'usuarios' | 'admin'>('dashboard');
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [themeMode, setThemeModeState] = useState<'light' | 'dark'>(getThemeMode());
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
@@ -71,7 +72,7 @@ export function App() {
   }, [currentUser, currentEmpresa]);
 
   useEffect(() => {
-    if (currentUser && currentUser.rol === 'operador' && (activeTab === 'admin' || activeTab === 'dashboard' || activeTab === 'catalogos' || activeTab === 'usuarios')) {
+    if (currentUser && currentUser.rol === 'operador' && (activeTab === 'admin' || activeTab === 'dashboard' || activeTab === 'catalogos' || activeTab === 'endpoint' || activeTab === 'usuarios')) {
       setActiveTab('form');
     }
   }, [currentUser, activeTab]);
@@ -107,6 +108,7 @@ export function App() {
       case 'form': return 'Nuevo Prospecto';
       case 'list': return 'Gestión de Leads';
       case 'catalogos': return 'Catálogos';
+      case 'endpoint': return 'Integración Endpoint POST';
       case 'usuarios': return 'Usuarios y Roles';
       case 'admin': return 'Configuración de Empresa';
     }
@@ -187,6 +189,15 @@ export function App() {
                 <li>
                   <button
                     type="button"
+                    className={`sidebar-nav-item ${activeTab === 'endpoint' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('endpoint')}
+                  >
+                    <Globe size={18} /> Endpoint POST
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
                     className={`sidebar-nav-item ${activeTab === 'usuarios' ? 'active' : ''}`}
                     onClick={() => setActiveTab('usuarios')}
                   >
@@ -260,6 +271,14 @@ export function App() {
             <AdminPanel 
               currentUser={currentUser} 
               activeSubTab="catalogos"
+              onSubTabChange={(t) => setActiveTab(t === 'empresas' ? 'admin' : t as any)}
+              onEmpresaUpdated={refreshEmpresas} 
+            />
+          )}
+          {activeTab === 'endpoint' && canViewAdminModules && (
+            <AdminPanel 
+              currentUser={currentUser} 
+              activeSubTab="endpoint"
               onSubTabChange={(t) => setActiveTab(t === 'empresas' ? 'admin' : t as any)}
               onEmpresaUpdated={refreshEmpresas} 
             />

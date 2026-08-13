@@ -21,8 +21,15 @@ ALTER TABLE IF EXISTS perfiles DROP CONSTRAINT IF EXISTS perfiles_id_fkey;
 CREATE TABLE IF NOT EXISTS empresas (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   nombre TEXT NOT NULL,
+  endpoint_url TEXT,
+  endpoint_enabled BOOLEAN DEFAULT false,
+  endpoint_body_template TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE empresas ADD COLUMN IF NOT EXISTS endpoint_url TEXT;
+ALTER TABLE empresas ADD COLUMN IF NOT EXISTS endpoint_enabled BOOLEAN DEFAULT false;
+ALTER TABLE empresas ADD COLUMN IF NOT EXISTS endpoint_body_template TEXT;
 
 CREATE TABLE IF NOT EXISTS perfiles (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -31,8 +38,11 @@ CREATE TABLE IF NOT EXISTS perfiles (
   password TEXT,
   rol TEXT NOT NULL CHECK (rol IN ('superadmin', 'admin', 'operador')),
   empresa_id UUID REFERENCES empresas(id) ON DELETE SET NULL,
+  cod_usuario TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE perfiles ADD COLUMN IF NOT EXISTS cod_usuario TEXT;
 
 CREATE TABLE IF NOT EXISTS prospectos (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -50,15 +60,38 @@ CREATE TABLE IF NOT EXISTS prospectos (
 ALTER TABLE prospectos ADD COLUMN IF NOT EXISTS empresa_id UUID;
 ALTER TABLE prospectos ADD COLUMN IF NOT EXISTS creado_por UUID;
 
--- 4. HABILITAR RLS Y PERMISOS DE INSERCIÓN Y LECTURA
+-- 4. TABLA DE REGISTRO / LOGS DE ENVIOS POST (WEBHOOKS)
+CREATE TABLE IF NOT EXISTS webhook_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  empresa_id UUID,
+  prospecto_id UUID,
+  prospecto_nombre TEXT NOT NULL,
+  prospecto_contacto TEXT,
+  endpoint_url TEXT NOT NULL,
+  success BOOLEAN DEFAULT false,
+  status_code INT,
+  status_text TEXT,
+  compiled_body TEXT,
+  response_body TEXT,
+  error TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5. HABILITAR RLS Y PERMISOS DE INSERCIÓN Y LECTURA
 ALTER TABLE empresas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE perfiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE prospectos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE webhook_logs ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Permitir crear prospectos" ON prospectos;
 DROP POLICY IF EXISTS "Permitir leer prospectos" ON prospectos;
 CREATE POLICY "Permitir crear prospectos" ON prospectos FOR INSERT WITH CHECK (true);
 CREATE POLICY "Permitir leer prospectos" ON prospectos FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Permitir crear webhook_logs" ON webhook_logs;
+DROP POLICY IF EXISTS "Permitir leer webhook_logs" ON webhook_logs;
+CREATE POLICY "Permitir crear webhook_logs" ON webhook_logs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Permitir leer webhook_logs" ON webhook_logs FOR SELECT USING (true);
 `;
 
   const copyToClipboard = (text: string, setFn: (val: boolean) => void) => {
