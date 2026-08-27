@@ -199,9 +199,37 @@ export async function sendLeadToEndpoint(
       timestamp,
     };
   } catch (err: any) {
+    // Si la petición directa desde el navegador es bloqueada por CORS, intentar proxy local
+    try {
+      const proxyUrl = `/api-proxy?url=${encodeURIComponent(url.trim())}`;
+      const proxyResponse = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: compiledBody,
+      });
+
+      const proxyText = await proxyResponse.text();
+      return {
+        success: proxyResponse.ok,
+        statusCode: proxyResponse.status,
+        statusText: proxyResponse.statusText,
+        responseBody: proxyText.slice(0, 1000),
+        compiledBody,
+        timestamp,
+      };
+    } catch (_proxyErr) {
+      // Ignorar fallback si el proxy tampoco responde
+    }
+
+    let errorMsg = err.message || 'Error de red o conexión al intentar enviar al endpoint POST.';
+    if (err.name === 'TypeError' || (err.message && (err.message.includes('Failed to fetch') || err.message.includes('fetch')))) {
+      errorMsg = `Failed to fetch: El navegador bloqueó la petición POST a "${url.trim()}". Causas principales: 1) La URL no permite peticiones desde navegador (falta cabecera CORS Access-Control-Allow-Origin). 2) La URL no existe o devuelve error SSL.`;
+    }
     return {
       success: false,
-      error: err.message || 'Error de red o conexión al intentar enviar al endpoint POST.',
+      error: errorMsg,
       compiledBody,
       timestamp,
     };

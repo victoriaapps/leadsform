@@ -254,6 +254,14 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
             created_at: new Date().toISOString(),
           });
         }
+      } else {
+        setEndpointResult({
+          success: false,
+          error: targetEmpresaObj?.endpoint_enabled
+            ? 'La URL del endpoint POST no está configurada.'
+            : 'El envío automático al endpoint POST está inactivo para esta empresa (deshabilitado en Configuración).',
+          isDisabled: true
+        } as any);
       }
 
       setIsSuccess(true);
@@ -319,45 +327,57 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
                 padding: '1rem 1.25rem',
                 borderRadius: '12px',
                 textAlign: 'left',
-                background: endpointResult.success ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
-                border: `1px solid ${endpointResult.success ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                background: (endpointResult as any).isDisabled 
+                  ? 'var(--bg-surface-hover)' 
+                  : (endpointResult.success ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)'),
+                border: `1px solid ${(endpointResult as any).isDisabled 
+                  ? 'var(--border-color)' 
+                  : (endpointResult.success ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)')}`,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.4rem' }}>
                   <span style={{
                     fontWeight: 700,
                     fontSize: '0.9rem',
-                    color: endpointResult.success ? '#10b981' : '#f59e0b',
+                    color: (endpointResult as any).isDisabled 
+                      ? 'var(--text-dim)' 
+                      : (endpointResult.success ? '#10b981' : '#f59e0b'),
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.4rem'
                   }}>
                     <Globe size={17} /> 
-                    {endpointResult.success 
-                      ? `Enviado a Endpoint POST (HTTP ${endpointResult.statusCode || 200})` 
-                      : 'Notificación a Endpoint POST Fallida'}
+                    {(endpointResult as any).isDisabled
+                      ? 'Integración Webhook POST Inactiva'
+                      : (endpointResult.success 
+                          ? `Enviado a Endpoint POST (HTTP ${endpointResult.statusCode || 200})` 
+                          : 'Notificación a Endpoint POST Fallida')}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowPayloadDetails(!showPayloadDetails)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--text-dim)',
-                      cursor: 'pointer',
-                      fontSize: '0.8rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.2rem'
-                    }}
-                  >
-                    <Code2 size={14} /> Payload {showPayloadDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  </button>
+                  {endpointResult.compiledBody && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPayloadDetails(!showPayloadDetails)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-dim)',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.2rem'
+                      }}
+                    >
+                      <Code2 size={14} /> Payload {showPayloadDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
+                  )}
                 </div>
 
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-main)', margin: 0 }}>
-                  {endpointResult.success
-                    ? 'El webhook ha procesado y recibido correctamente la información del lead.'
-                    : `El lead se guardó localmente, pero el servidor remoto retornó error: ${endpointResult.error || `HTTP ${endpointResult.statusCode} ${endpointResult.statusText}`}`}
+                  {(endpointResult as any).isDisabled
+                    ? `El lead se guardó localmente en el sistema. ${endpointResult.error}`
+                    : (endpointResult.success
+                        ? 'El webhook ha procesado y recibido correctamente la información del lead.'
+                        : `El lead se guardó localmente, pero el servidor remoto retornó error: ${endpointResult.error || `HTTP ${endpointResult.statusCode} ${endpointResult.statusText}`}`)}
                 </p>
 
                 {showPayloadDetails && endpointResult.compiledBody && (

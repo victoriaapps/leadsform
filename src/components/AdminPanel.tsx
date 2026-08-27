@@ -365,11 +365,59 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     try {
       const res = await sendLeadToEndpoint(endpointUrl.trim(), endpointBodyTemplate, testContext);
       setTestResult(res);
+
+      const logPayload = {
+        empresa_id: selectedEndpointEmpresaId,
+        prospecto_id: testProspecto.id,
+        prospecto_nombre: `[Prueba POST] ${testProspecto.nombre}`,
+        prospecto_contacto: testProspecto.contacto,
+        endpoint_url: endpointUrl.trim(),
+        success: res.success,
+        status_code: res.statusCode,
+        status_text: res.statusText,
+        compiled_body: res.compiledBody || '',
+        response_body: res.responseBody,
+        error: res.error,
+        created_at: res.timestamp || new Date().toISOString(),
+      };
+
+      if (isSupabaseConfigured && supabase) {
+        try {
+          await supabase.from('webhook_logs').insert([logPayload]);
+        } catch (logErr) {
+          console.warn('Fallback local para log de webhook de prueba');
+        }
+      }
+      saveDemoWebhookLog(logPayload);
+      await loadData();
     } catch (err: any) {
-      setTestResult({
+      const errRes = {
         success: false,
         error: err.message || 'Error inesperado durante la prueba.',
-      });
+      };
+      setTestResult(errRes);
+
+      const logPayload = {
+        empresa_id: selectedEndpointEmpresaId,
+        prospecto_id: testProspecto.id,
+        prospecto_nombre: `[Prueba POST] ${testProspecto.nombre}`,
+        prospecto_contacto: testProspecto.contacto,
+        endpoint_url: endpointUrl.trim(),
+        success: false,
+        compiled_body: '',
+        error: errRes.error,
+        created_at: new Date().toISOString(),
+      };
+
+      if (isSupabaseConfigured && supabase) {
+        try {
+          await supabase.from('webhook_logs').insert([logPayload]);
+        } catch (logErr) {
+          console.warn('Fallback local para log de webhook de prueba');
+        }
+      }
+      saveDemoWebhookLog(logPayload);
+      await loadData();
     } finally {
       setIsTestingEndpoint(false);
     }
@@ -384,16 +432,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsRetryingLogId(log.id);
 
     try {
-      const response = await fetch(log.endpoint_url.trim(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: log.compiled_body,
-      });
-
-      const responseText = await response.text();
-      const isSuccess = response.ok;
+      const res = await sendLeadToEndpoint(
+        log.endpoint_url.trim(),
+        log.compiled_body,
+        {
+          prospecto: {
+            id: log.prospecto_id || '',
+            nombre: log.prospecto_nombre || '',
+            contacto: log.prospecto_contacto || '',
+            marca: '',
+            modelo: '',
+            created_at: log.created_at || new Date().toISOString(),
+          },
+          currentUser,
+        }
+      );
 
       const newLogPayload: Partial<WebhookLogEntry> = {
         empresa_id: log.empresa_id,
@@ -401,13 +454,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         prospecto_nombre: log.prospecto_nombre,
         prospecto_contacto: log.prospecto_contacto,
         endpoint_url: log.endpoint_url,
-        success: isSuccess,
-        status_code: response.status,
-        status_text: response.statusText,
+        success: res.success,
+        status_code: res.statusCode,
+        status_text: res.statusText,
         compiled_body: log.compiled_body,
-        response_body: responseText.slice(0, 1000),
-        error: isSuccess ? undefined : `HTTP ${response.status}: ${response.statusText}`,
-        created_at: new Date().toISOString(),
+        response_body: res.responseBody,
+        error: res.error,
+        created_at: res.timestamp || new Date().toISOString(),
       };
 
       if (isSupabaseConfigured && supabase) {
@@ -419,7 +472,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       }
       saveDemoWebhookLog(newLogPayload);
 
-      alert(isSuccess ? `¡Reintento exitoso! HTTP ${response.status}` : `Reintento fallido: HTTP ${response.status}`);
+      alert(res.success ? `¡Reintento exitoso! HTTP ${res.statusCode || 200}` : `Reintento fallido: ${res.error || `HTTP ${res.statusCode}`}`);
       await loadData();
     } catch (err: any) {
       const failedPayload: Partial<WebhookLogEntry> = {
@@ -1711,6 +1764,44 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           {testResult.error && (
                             <div style={{ fontSize: '0.8rem', color: '#ef4444', marginBottom: '0.5rem' }}>
                               {testResult.error}
+                            </div>
+                          )}
+
+                          {(testResult.error?.includes('CORS') || testResult.error?.includes('Failed to fetch')) && (
+                            <div style={{
+                              marginTop: '0.75rem',
+                              padding: '0.75rem',
+                              borderRadius: '8px',
+                              background: 'rgba(234, 179, 8, 0.1)',
+                              border: '1px solid rgba(234, 179, 8, 0.35)',
+                              fontSize: '0.78rem'
+                            }}>
+                              <div style={{ fontWeight: 700, color: '#eab308', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                💡 Solución para el Error de CORS en webhook.php
+                              </div>
+                              <div style={{ color: 'var(--text-dim)', marginBottom: '0.4rem', lineHeight: 1.4 }}>
+                                Agrega las siguientes líneas al inicio de tu script PHP en <code>autosud.center</code>:
+                              </div>
+                              <pre style={{
+                                background: 'var(--bg-surface)',
+                                padding: '0.5rem 0.65rem',
+                                borderRadius: '6px',
+                                fontSize: '0.74rem',
+                                fontFamily: 'monospace',
+                                color: 'var(--text-main)',
+                                margin: 0,
+                                whiteSpace: 'pre-wrap',
+                                border: '1px solid var(--border-color)'
+                              }}>
+{`header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+
+if (\$_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}`}
+                              </pre>
                             </div>
                           )}
 
