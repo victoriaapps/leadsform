@@ -727,18 +727,19 @@ img {
 .mobile-bottom-nav {
   display: none;
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 68px;
+  bottom: 1.25rem;
+  left: 1.25rem;
+  right: 1.25rem;
+  height: 64px;
+  border-radius: 24px;
   background: var(--bg-sidebar);
-  border-top: 1px solid var(--border-color);
+  border: 1px solid var(--border-color);
   justify-content: space-around;
   align-items: center;
   z-index: 1000;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.12);
 }
 
 .bottom-nav-item {
@@ -795,12 +796,15 @@ img {
 
   .content-body {
     padding: 0.85rem;
-    padding-bottom: 90px;
+    padding-bottom: 110px;
   }
 
   .card-victoria {
-    padding: 1.1rem 0.95rem;
-    border-radius: 16px;
+    padding: 1.25rem 1rem;
+    border-radius: 20px;
+    border: none;
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
+    background: var(--bg-surface);
   }
 
   .card-victoria-header {
@@ -820,15 +824,32 @@ img {
   }
 
   .input-label {
-    font-size: 0.78rem;
-    letter-spacing: 0.02em;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.8;
   }
 
   .input-field {
-    font-size: 0.9rem;
-    padding: 0.75rem 0.85rem;
-    min-height: 48px;
-    border-radius: 12px;
+    font-size: 0.95rem;
+    padding: 0.85rem 1rem;
+    min-height: 52px;
+    border-radius: 16px;
+    background: var(--bg-surface-hover);
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+  }
+  
+  .input-field:focus {
+    background: var(--bg-input);
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+  }
+
+  .btn-primary, .btn-secondary {
+    border-radius: 16px;
+    min-height: 52px;
+    font-size: 0.95rem;
   }
 
   /* KPI CARDS MÓVIL DE 2 COLUMNAS COMPACTAS */
