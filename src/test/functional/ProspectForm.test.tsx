@@ -19,8 +19,8 @@ describe('Funcional UI: Formulario de Prospectos (ProspectForm)', () => {
   it('debe renderizar todos los campos requeridos del formulario', () => {
     render(<ProspectForm currentUser={dummyUser} />);
 
-    expect(screen.getByPlaceholderText(/Ej. Juan Pérez/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Ej. \+56 9 1234 5678/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Nombre Completo/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Teléfono/i)).toBeInTheDocument();
     expect(screen.getByText(/MARCA DEL VEHÍCULO/i)).toBeInTheDocument();
     expect(screen.getAllByText(/MODELO/i).length).toBeGreaterThan(0);
   });
@@ -35,22 +35,22 @@ describe('Funcional UI: Formulario de Prospectos (ProspectForm)', () => {
     expect(await screen.findByText(/El teléfono es obligatorio/i)).toBeInTheDocument();
   });
 
-  it('debe permitir completar los campos y registrar el prospecto con éxito', async () => {
+  it('debe permitir completar los campos y registrar el prospecto con éxito y prefijo 591', async () => {
     const handleSuccess = vi.fn();
     render(<ProspectForm currentUser={dummyUser} onSuccess={handleSuccess} />);
 
-    const nombreInput = screen.getByPlaceholderText(/Ej. Juan Pérez/i);
-    const telefonoInput = screen.getByPlaceholderText(/Ej. \+56 9 1234 5678/i);
+    const nombreInput = screen.getByLabelText(/Nombre Completo/i);
+    const telefonoInput = screen.getByLabelText(/Teléfono/i);
 
     fireEvent.change(nombreInput, { target: { value: 'Maria Gonzalez' } });
-    fireEvent.change(telefonoInput, { target: { value: '+56 9 7777 6666' } });
+    fireEvent.change(telefonoInput, { target: { value: '780935354' } });
 
     // Seleccionar o ingresar marca
-    const marcaElement = screen.queryByRole('combobox') || screen.getByPlaceholderText(/Ej. Toyota, Nissan, Ford.../i);
+    const marcaElement = screen.queryByRole('combobox') || screen.getByLabelText(/Marca/i);
     fireEvent.change(marcaElement, { target: { value: 'Suzuki' } });
 
-    // Si aparece selector de modelo tras elegir marca
-    const modelElement = screen.queryByPlaceholderText(/Escribe el modelo/i) || screen.queryAllByRole('combobox')[1];
+    // Si aparece selector o input de modelo tras elegir marca
+    const modelElement = screen.queryByLabelText(/^Modelo/i) || screen.queryAllByRole('combobox')[1];
     if (modelElement) {
       fireEvent.change(modelElement, { target: { value: 'Baleno' } });
     }
@@ -58,9 +58,11 @@ describe('Funcional UI: Formulario de Prospectos (ProspectForm)', () => {
     const submitBtn = screen.getByRole('button', { name: /Guardar Prospecto/i });
     fireEvent.click(submitBtn);
 
-    // Esperar callback
+    // Esperar callback y verificar prefijo en resumen
     await waitFor(() => {
       expect(handleSuccess).toHaveBeenCalled();
     }, { timeout: 3000 });
+
+    expect(await screen.findByText('591780935354')).toBeInTheDocument();
   });
 });

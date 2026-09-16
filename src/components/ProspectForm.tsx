@@ -21,6 +21,7 @@ import type { Prospecto, UsuarioPerfil, FormErrorState, Empresa } from '../types
 import { 
   saveDemoProspecto, 
   getDemoEmpresas, 
+  getDemoPerfiles,
   saveDemoWebhookLog,
   supabase, 
   isSupabaseConfigured
@@ -43,6 +44,10 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
   const [selectedTargetEmpresaId, setSelectedTargetEmpresaId] = useState<string>(
     currentUser.empresa_id || ''
   );
+
+  // Asignación de Usuarios
+  const [perfilesAsignables, setPerfilesAsignables] = useState<UsuarioPerfil[]>([]);
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>(currentUser.id);
 
   useEffect(() => {
     const loadEmpresas = async () => {
@@ -68,6 +73,34 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
     loadEmpresas();
   }, [currentUser]);
 
+  // Cargar usuarios asignables cuando cambia la empresa objetivo (si es admin o superadmin)
+  useEffect(() => {
+    const loadPerfiles = async () => {
+      if (currentUser.rol !== 'admin' && currentUser.rol !== 'superadmin') {
+        setPerfilesAsignables([]);
+        return;
+      }
+
+      const targetEmpresa = currentUser.rol === 'superadmin' ? selectedTargetEmpresaId : currentUser.empresa_id;
+      if (!targetEmpresa) return;
+
+      let currentPerfiles: UsuarioPerfil[] = [];
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data } = await supabase.from('perfiles').select('*').eq('empresa_id', targetEmpresa);
+          currentPerfiles = data || [];
+        } catch (e) {
+          console.error('Error al cargar perfiles:', e);
+          currentPerfiles = getDemoPerfiles().filter(p => p.empresa_id === targetEmpresa);
+        }
+      } else {
+        currentPerfiles = getDemoPerfiles().filter(p => p.empresa_id === targetEmpresa);
+      }
+      setPerfilesAsignables(currentPerfiles);
+    };
+    loadPerfiles();
+  }, [selectedTargetEmpresaId, currentUser]);
+
   // Resolver la empresa activa cuyos catálogos cargaremos
   const currentEmpresa = empresas.find(e => e.id === selectedTargetEmpresaId) || empresas[0];
 
@@ -91,6 +124,7 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
   const [textModelo, setTextModelo] = useState('');
 
   const [observacion, setObservacion] = useState('');
+  const [esReserva, setEsReserva] = useState(false);
 
   const [errors, setErrors] = useState<FormErrorState>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -149,17 +183,35 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
 
     const targetEmpresaId = currentUser.rol === 'superadmin' ? selectedTargetEmpresaId : (currentUser.empresa_id || selectedTargetEmpresaId);
 
+    // Determinar creador basado en el asignado
+    let assignedUser = currentUser;
+    if ((currentUser.rol === 'admin' || currentUser.rol === 'superadmin') && selectedAssigneeId !== currentUser.id) {
+      const foundUser = perfilesAsignables.find(p => p.id === selectedAssigneeId);
+      if (foundUser) {
+        assignedUser = foundUser;
+      }
+    }
+
+    const formatPhoneBolivia = (phone: string): string => {
+      const digits = phone.replace(/\D/g, '');
+      if (!digits) return '';
+      return digits.startsWith('591') ? digits : `591${digits}`;
+    };
+
+    const formattedContacto = formatPhoneBolivia(contacto);
+
     const newProspectoData: Omit<Prospecto, 'id' | 'created_at'> = {
       nombre: nombre.trim(),
       ciudad: finalCiudad.trim() || undefined,
-      contacto: contacto.trim(),
+      contacto: formattedContacto,
       marca: finalMarca.trim(),
       modelo: finalModelo.trim(),
       observacion: observacion.trim() || undefined,
+      es_reserva: esReserva,
       empresa_id: targetEmpresaId,
-      creado_por: currentUser.id,
-      creado_por_nombre: currentUser.nombre,
-      creado_por_cod_usuario: currentUser.cod_usuario || null,
+      creado_por: assignedUser.id,
+      creado_por_nombre: assignedUser.nombre,
+      creado_por_cod_usuario: assignedUser.cod_usuario || null,
     };
 
     let savedProspecto: Prospecto;
@@ -176,8 +228,9 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
               marca: newProspectoData.marca,
               modelo: newProspectoData.modelo,
               observacion: newProspectoData.observacion,
+              es_reserva: newProspectoData.es_reserva,
               empresa_id: targetEmpresaId,
-              creado_por: currentUser.id
+              creado_por: assignedUser.id
             }
           ])
           .select();
@@ -285,6 +338,8 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
     setSelectedModelo('');
     setTextModelo('');
     setObservacion('');
+    setEsReserva(false);
+    setSelectedAssigneeId(currentUser.id);
     setErrors({});
     setIsSuccess(false);
     setLastSubmitted(null);
@@ -454,6 +509,25 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
               </select>
             </div>
           )}
+          
+          {/* SELECTOR DE ASIGNACIÓN PARA ADMIN/SUPERADMIN */}
+          {(currentUser.rol === 'superadmin' || currentUser.rol === 'admin') && perfilesAsignables.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-surface-hover)', padding: '0.5rem 0.85rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+              <User size={16} style={{ color: 'var(--primary-accent)' }} />
+              <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>Asignar a:</span>
+              <select
+                value={selectedAssigneeId}
+                onChange={(e) => setSelectedAssigneeId(e.target.value)}
+                className="input-field"
+                style={{ width: 'auto', padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}
+              >
+                <option value={currentUser.id}>Mí mismo ({currentUser.nombre})</option>
+                {perfilesAsignables.filter(p => p.id !== currentUser.id).map((p) => (
+                  <option key={p.id} value={p.id}>{p.nombre}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {errors.general && (
@@ -472,7 +546,8 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
               </label>
               <input
                 type="text"
-                placeholder="Ej. Juan Pérez"
+                placeholder=""
+                aria-label="Nombre Completo"
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
                 className={`input-field ${errors.nombre ? 'input-error' : ''}`}
@@ -499,7 +574,7 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
               ) : (
                 <input
                   type="text"
-                  placeholder="Ej. Santiago, Madrid, Bogotá..."
+                  placeholder=""
                   value={textCiudad}
                   onChange={(e) => setTextCiudad(e.target.value)}
                   className="input-field"
@@ -514,7 +589,8 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
               </label>
               <input
                 type="text"
-                placeholder="Ej. +56 9 1234 5678"
+                placeholder=""
+                aria-label="Teléfono"
                 value={contacto}
                 onChange={(e) => setContacto(e.target.value)}
                 className={`input-field ${errors.contacto ? 'input-error' : ''}`}
@@ -541,7 +617,8 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
               ) : (
                 <input
                   type="text"
-                  placeholder="Ej. Toyota, Nissan, Ford..."
+                  placeholder=""
+                  aria-label="Marca"
                   value={textMarca}
                   onChange={(e) => handleMarcaChange(e.target.value)}
                   className={`input-field ${errors.marca ? 'input-error' : ''}`}
@@ -574,13 +651,28 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
               ) : (
                 <input
                   type="text"
-                  placeholder={`Escribe el modelo para ${finalMarca}...`}
+                  placeholder=""
+                  aria-label="Modelo"
                   value={textModelo}
                   onChange={(e) => setTextModelo(e.target.value)}
                   className={`input-field ${errors.modelo ? 'input-error' : ''}`}
                 />
               )}
               {errors.modelo && <span className="error-text">{errors.modelo}</span>}
+            </div>
+
+            {/* CHECKBOX RESERVA */}
+            <div className="input-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingTop: '1.8rem' }}>
+              <input
+                type="checkbox"
+                id="reserva-checkbox"
+                checked={esReserva}
+                onChange={(e) => setEsReserva(e.target.checked)}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <label htmlFor="reserva-checkbox" style={{ fontSize: '0.9rem', cursor: 'pointer', fontWeight: 600 }}>
+                RESERVA
+              </label>
             </div>
           </div>
 
@@ -590,7 +682,7 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
               <FileText size={15} /> OBSERVACIONES ADICIONALES <span className="opt-tag">(Opcional)</span>
             </label>
             <textarea
-              placeholder="Detalles adicionales, preferencias de color, tipo de pago, crédito directo, etc."
+              placeholder=""
               value={observacion}
               onChange={(e) => setObservacion(e.target.value)}
               className="input-field textarea-field"

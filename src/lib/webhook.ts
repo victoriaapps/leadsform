@@ -43,6 +43,7 @@ export const AVAILABLE_VARIABLES = [
   { token: '{usuario_nombre}', label: 'Nombre de Usuario', description: 'Nombre completo del operador en sesión', category: 'sistema' },
   { token: '{empresa_nombre}', label: 'Empresa', description: 'Nombre de la empresa asignada', category: 'sistema' },
   { token: '{created_at}', label: 'Fecha de Registro', description: 'Fecha ISO de creación del lead', category: 'sistema' },
+  { token: '{es_reserva}', label: 'Es Reserva', description: 'Indica si el lead fue marcado como reserva (true/false)', category: 'sistema' },
 ];
 
 /**
@@ -113,6 +114,9 @@ export function resolveVariableValue(token: string, context: WebhookPayloadConte
   }
   if (['created_at', 'fecha'].includes(lower)) {
     return context.prospecto.created_at || new Date().toISOString();
+  }
+  if (['es_reserva', 'reserva'].includes(lower)) {
+    return context.prospecto.es_reserva ? 'true' : 'false';
   }
 
   // 2. Búsqueda por propiedad anidada (e.g. assistantMeta.CodUsuario)

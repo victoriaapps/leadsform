@@ -34,6 +34,7 @@ export interface Prospecto {
   marca: string;          // OBLIGATORIO
   modelo: string;         // OBLIGATORIO
   observacion?: string;   // OPCIONAL
+  es_reserva?: boolean;   // OPCIONAL
   empresa_id?: string | null;
   empresa_nombre?: string;
   creado_por?: string | null;
