@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 const corsProxyPlugin = () => ({
   name: 'cors-proxy-plugin',
   configureServer(server: any) {
-    server.middlewares.use('/api-proxy', async (req: any, res: any) => {
+    server.middlewares.use('/api/proxy', async (req: any, res: any) => {
       if (req.method === 'OPTIONS') {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');

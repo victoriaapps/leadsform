@@ -205,7 +205,7 @@ export async function sendLeadToEndpoint(
   } catch (err: any) {
     // Si la petición directa desde el navegador es bloqueada por CORS, intentar proxy local
     try {
-      const proxyUrl = `/api-proxy?url=${encodeURIComponent(url.trim())}`;
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(url.trim())}`;
       const proxyResponse = await fetch(proxyUrl, {
         method: 'POST',
         headers: {
