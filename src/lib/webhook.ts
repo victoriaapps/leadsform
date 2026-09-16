@@ -44,6 +44,7 @@ export const AVAILABLE_VARIABLES = [
   { token: '{empresa_nombre}', label: 'Empresa', description: 'Nombre de la empresa asignada', category: 'sistema' },
   { token: '{created_at}', label: 'Fecha de Registro', description: 'Fecha ISO de creación del lead', category: 'sistema' },
   { token: '{es_reserva}', label: 'Es Reserva', description: 'Indica si el lead fue marcado como reserva (true/false)', category: 'sistema' },
+  { token: '{estado_reserva}', label: 'Estado de Reserva', description: 'Muestra "CON RESERVA" o "SIN RESERVA" según el checkbox', category: 'sistema' },
 ];
 
 /**
@@ -117,6 +118,9 @@ export function resolveVariableValue(token: string, context: WebhookPayloadConte
   }
   if (['es_reserva', 'reserva'].includes(lower)) {
     return context.prospecto.es_reserva ? 'true' : 'false';
+  }
+  if (['estado_reserva', 'estadoreserva'].includes(lower)) {
+    return context.prospecto.es_reserva ? 'CON RESERVA' : 'SIN RESERVA';
   }
 
   // 2. Búsqueda por propiedad anidada (e.g. assistantMeta.CodUsuario)
