@@ -258,9 +258,14 @@ export const ProspectForm: React.FC<ProspectFormProps> = ({ currentUser, onSucce
             targetEmpresaObj.endpoint_url,
             targetEmpresaObj.endpoint_body_template || DEFAULT_ENDPOINT_BODY,
             {
-              prospecto: savedProspecto,
+              prospecto: {
+                ...savedProspecto,
+                creado_por_cod_usuario: assignedUser.cod_usuario || null,
+                creado_por_nombre: assignedUser.nombre,
+              },
               currentUser,
               empresa: targetEmpresaObj,
+              perfiles: perfilesAsignables,
             }
           );
           setEndpointResult(res);
