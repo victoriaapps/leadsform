@@ -215,6 +215,12 @@ export async function sendLeadToEndpoint(
       });
 
       const proxyText = await proxyResponse.text();
+      
+      // Si el proxy local devuelve 404 (no existe), ignorar el fallback
+      if (proxyResponse.status === 404 && (proxyText.includes('NOT_FOUND') || proxyText.includes('Cannot POST'))) {
+        throw new Error('Proxy endpoint not found');
+      }
+
       return {
         success: proxyResponse.ok,
         statusCode: proxyResponse.status,
