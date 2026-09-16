@@ -12,7 +12,8 @@ import {
   Clock,
   Activity,
   Tag,
-  PieChart
+  PieChart,
+  ArrowUpDown
 } from 'lucide-react';
 import type { Prospecto, UsuarioPerfil, Empresa } from '../types/prospecto';
 import { 
@@ -37,6 +38,9 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ currentUser 
     currentUser.rol === 'admin' ? (currentUser.empresa_id || 'all') : 'all'
   );
   const [loading, setLoading] = useState<boolean>(true);
+  
+  // Estado para ordenamiento de tabla de operadores
+  const [operatorSort, setOperatorSort] = useState<{ key: 'name' | 'count' | 'reservas'; direction: 'asc' | 'desc' }>({ key: 'count', direction: 'desc' });
 
   // Filtros de fecha estilo Victoria (por defecto últimos 10 días)
   const now = new Date();
@@ -158,7 +162,8 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ currentUser 
   // Métricas calculadas
   const metrics = useMemo(() => {
     const totalLeads = filteredProspectos.length;
-    const userCounts: Record<string, { count: number; name: string }> = {};
+    let totalReservas = 0;
+    const userCounts: Record<string, { count: number; name: string; reservas: number }> = {};
     const brandCounts: Record<string, number> = {};
     const modelCounts: Record<string, number> = {};
 
@@ -176,9 +181,14 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ currentUser 
       if (perf) userName = perf.nombre;
 
       if (!userCounts[userId]) {
-        userCounts[userId] = { count: 0, name: userName };
+        userCounts[userId] = { count: 0, name: userName, reservas: 0 };
       }
       userCounts[userId].count += 1;
+      
+      if (p.es_reserva) {
+        userCounts[userId].reservas += 1;
+        totalReservas += 1;
+      }
 
       const brand = p.marca ? p.marca.trim() : 'Sin Marca';
       brandCounts[brand] = (brandCounts[brand] || 0) + 1;
@@ -282,6 +292,7 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ currentUser 
 
     return {
       totalLeads,
+      totalReservas,
       userCounts: Object.values(userCounts).sort((a, b) => b.count - a.count),
       topUser,
       topBrand,
@@ -401,6 +412,19 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ currentUser 
               </div>
               <div className="kpi-icon-badge" style={{ background: 'var(--primary-glow)', color: activeThemeColor }}>
                 <UserPlus size={20} />
+              </div>
+            </div>
+
+            <div className="kpi-card-victoria">
+              <div>
+                <div className="kpi-title-sub">Reservas Confirmadas</div>
+                <div className="kpi-value-num" style={{ fontSize: '1.5rem' }}>{metrics.totalReservas}</div>
+                <div className="kpi-growth-tag" style={{ color: activeThemeColor }}>
+                  <TrendingUp size={13} /> {metrics.totalLeads > 0 ? Math.round((metrics.totalReservas / metrics.totalLeads) * 100) : 0}% de conversión
+                </div>
+              </div>
+              <div className="kpi-icon-badge" style={{ background: 'var(--primary-glow)', color: activeThemeColor }}>
+                <Calendar size={20} />
               </div>
             </div>
 
@@ -850,30 +874,67 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ currentUser 
               </h3>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {metrics.userCounts.map((u, idx) => {
-                const pct = metrics.totalLeads > 0 ? Math.round((u.count / metrics.totalLeads) * 100) : 0;
-                return (
-                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 600 }}>
-                      <span style={{ color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <User size={14} style={{ color: 'var(--primary-accent)' }} /> {u.name}
-                      </span>
-                      <span style={{ color: 'var(--primary-accent)', fontWeight: 800 }}>
-                        {u.count} prospectos ({pct}%)
-                      </span>
-                    </div>
-                    <div style={{ width: '100%', height: '8px', background: 'var(--bg-primary)', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div style={{
-                        width: `${pct}%`,
-                        height: '100%',
-                        background: 'var(--primary-accent)',
-                        borderRadius: '4px'
-                      }}></div>
-                    </div>
-                  </div>
-                );
-              })}
+            <div style={{ overflowX: 'auto' }}>
+              <table className="prospects-table">
+                <thead>
+                  <tr>
+                    <th 
+                      style={{ cursor: 'pointer', transition: 'color 0.2s', userSelect: 'none' }}
+                      onClick={() => setOperatorSort(prev => ({ key: 'name', direction: prev.key === 'name' && prev.direction === 'asc' ? 'desc' : 'asc' }))}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        Operador <ArrowUpDown size={12} style={{ opacity: operatorSort.key === 'name' ? 1 : 0.4 }} />
+                      </div>
+                    </th>
+                    <th 
+                      style={{ cursor: 'pointer', transition: 'color 0.2s', textAlign: 'center', userSelect: 'none' }}
+                      onClick={() => setOperatorSort(prev => ({ key: 'count', direction: prev.key === 'count' && prev.direction === 'asc' ? 'desc' : 'asc' }))}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                        Leads <ArrowUpDown size={12} style={{ opacity: operatorSort.key === 'count' ? 1 : 0.4 }} />
+                      </div>
+                    </th>
+                    <th 
+                      style={{ cursor: 'pointer', transition: 'color 0.2s', textAlign: 'center', userSelect: 'none' }}
+                      onClick={() => setOperatorSort(prev => ({ key: 'reservas', direction: prev.key === 'reservas' && prev.direction === 'asc' ? 'desc' : 'asc' }))}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                        Reservas <ArrowUpDown size={12} style={{ opacity: operatorSort.key === 'reservas' ? 1 : 0.4 }} />
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...metrics.userCounts].sort((a, b) => {
+                    let valA = a[operatorSort.key];
+                    let valB = b[operatorSort.key];
+                    if (typeof valA === 'string' && typeof valB === 'string') {
+                      return operatorSort.direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    }
+                    return operatorSort.direction === 'asc' ? (valA as number) - (valB as number) : (valB as number) - (valA as number);
+                  }).map((u, idx) => (
+                    <tr key={idx}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--bg-surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <User size={14} style={{ color: 'var(--primary-accent)' }} />
+                          </div>
+                          {u.name}
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--text-main)', fontSize: '1rem' }}>{u.count}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 800, color: 'var(--primary-accent)', fontSize: '1rem' }}>{u.reservas}</td>
+                    </tr>
+                  ))}
+                  {metrics.userCounts.length === 0 && (
+                    <tr>
+                      <td colSpan={3} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-dim)' }}>
+                        No hay registros en este período.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </>
