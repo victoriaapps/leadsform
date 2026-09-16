@@ -97,8 +97,8 @@ export function resolveVariableValue(token: string, context: WebhookPayloadConte
       return context.currentUser.cod_usuario;
     }
 
-    // 4. Fallback general
-    return context.currentUser?.cod_usuario || context.prospecto.creado_por || context.currentUser?.id || '';
+    // 4. Fallback general: solo devolver el cod_usuario si existe, NUNCA el ID/UUID
+    return context.currentUser?.cod_usuario || '';
   }
   if (['creado_por_nombre', 'usuarionombre', 'usuario_nombre', 'user_name'].includes(lower)) {
     return context.currentUser?.nombre || context.prospecto.creado_por_nombre || '';
@@ -123,7 +123,7 @@ export function resolveVariableValue(token: string, context: WebhookPayloadConte
   if (clean.includes('.')) {
     const [head, tail] = clean.split('.');
     if (head.toLowerCase() === 'assistantmeta' && tail.toLowerCase() === 'codusuario') {
-      return context.currentUser?.id || context.prospecto.creado_por || '';
+      return context.currentUser?.cod_usuario || context.prospecto.creado_por_cod_usuario || '';
     }
   }
 

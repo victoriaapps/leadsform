@@ -59,7 +59,7 @@ describe('Webhook and Endpoint POST Service', () => {
       expect(resolveVariableValue('{marca}', context)).toBe('Suzuki');
       expect(resolveVariableValue('{modelo}', context)).toBe('Jimny');
       expect(resolveVariableValue('{observacion}', context)).toBe('Requiere financiamiento bancario al 100%');
-      expect(resolveVariableValue('{codUsuario}', context)).toBe('usr-admin-1');
+      expect(resolveVariableValue('{codUsuario}', context)).toBe('');
       expect(resolveVariableValue('{usuario_nombre}', context)).toBe('Admin General');
       expect(resolveVariableValue('{empresa_nombre}', context)).toBe('RAFCAR MOTORS');
     });
@@ -105,7 +105,7 @@ describe('Webhook and Endpoint POST Service', () => {
         pagina: 'Expocruz',
         campaign: 'Expocruz',
         telefono: '71234567',
-        codUsuario: 'usr-admin-1',
+        codUsuario: '',
         financiamiento: 'Requiere financiamiento bancario al 100%',
       });
     });
