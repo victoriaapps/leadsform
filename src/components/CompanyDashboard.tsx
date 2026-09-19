@@ -147,7 +147,8 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ currentUser 
       }
 
       if (!p.created_at) return true;
-      const leadDate = new Date(p.created_at).toISOString().slice(0, 10);
+      const d = new Date(p.created_at);
+      const leadDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       if (startDate && leadDate < startDate) return false;
       if (endDate && leadDate > endDate) return false;
 
@@ -209,12 +210,14 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ currentUser 
       const curr = new Date(startDate + 'T00:00:00');
       const end = new Date(endDate + 'T23:59:59');
       while (curr <= end) {
-        const dateIso = curr.toISOString().slice(0, 10);
+        const dateIso = `${curr.getFullYear()}-${String(curr.getMonth() + 1).padStart(2, '0')}-${String(curr.getDate()).padStart(2, '0')}`;
         const dayLabel = curr.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
         
         const count = filteredProspectos.filter((p) => {
           if (!p.created_at) return false;
-          return new Date(p.created_at).toISOString().slice(0, 10) === dateIso;
+          const d = new Date(p.created_at);
+          const pDateIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          return pDateIso === dateIso;
         }).length;
 
         dailyData.push({ day: dayLabel, count, dateIso });

@@ -175,7 +175,8 @@ export const ProspectList: React.FC<ProspectListProps> = ({ currentUser }) => {
 
       // 4. Filtro por Fechas (Desde / Hasta)
       if (p.created_at) {
-        const leadDate = new Date(p.created_at).toISOString().slice(0, 10);
+        const d = new Date(p.created_at);
+        const leadDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         if (startDate && leadDate < startDate) return false;
         if (endDate && leadDate > endDate) return false;
       }
